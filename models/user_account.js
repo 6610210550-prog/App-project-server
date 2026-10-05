@@ -8,7 +8,7 @@ module.exports = {
         try {
             conn = await pool.getConnection();
 
-            var sql = "SELECT account_id, account_username, account_image_url FROM user_accounts " 
+            var sql = "SELECT account_id, account_username FROM user_accounts " 
             +"WHERE account_id = ?";
 
             var rows = await conn.query(sql, [accountId]);
@@ -76,7 +76,7 @@ checkAccessRequest: async (authenSignature, authenToken) => {
     try{
         conn = await pool.getConnection();
 
-        var sql = "Select account_id, account_username, account_image_url From user_accounts Where "
+        var sql = "Select account_id, account_username From user_accounts Where "
         +"SHA2(Concat(account_username,'&',account_password,'&',?),256) = ?";
 
         var rows = await conn.query(sql,[authenToken, authenSignature]);

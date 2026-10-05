@@ -4,7 +4,7 @@ const pool = mariadb.createPool({
     user : 'root',
     password : '1234',
     port : 3307,
-    database: 'my_fitness',   
+    database: 'rubber_systems_flutter',   
     connectionLimit : 5 
 });
 

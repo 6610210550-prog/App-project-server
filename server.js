@@ -9,6 +9,9 @@ const farmerModel = require('./models/farmer_model');
 const carModel = require('./models/car_model');
 const cors = require('cors');
 const purchaseModel = require('./models/purchase_model');
+const testModel = require('./models/test_model');
+const TestModel = require('./models/test_model');
+const PurchaseModel = require('./models/purchase_model');
 
 const app = express();
 app.use(cors());
@@ -110,35 +113,43 @@ app.post("/api/authen/access_request", async (req, res) => {
 });
 
 app.post("/api/price/save_price", async (req, res) => {
-    const buyPrice = req.body.buy_price;
+    try {
+        const rawBuyPrice = req.body.buy_price;
+        const buyPrice = parseFloat(rawBuyPrice);
 
-    let response;
-    
-    if (!buyPrice || isNaN(buyPrice) || buyPrice <= 0) {
-        response = {
-            isError: true,
-            data: "",
-            errorMessage: "กรุณากรอกราคารับซื้อที่ถูกต้อง"
-        };
-    } else {
+        if (rawBuyPrice === undefined || rawBuyPrice === null || isNaN(buyPrice) || buyPrice <= 0) {
+            return res.status(400).json({
+                isError: true,
+                data: "",
+                errorMessage: "กรุณากรอกราคารับซื้อที่ถูกต้อง"
+            });
+        }
+
         const result = await priceModel.savePrice(buyPrice);
         
         if (result.isError) {
-            response = {
+            console.error("Database Error Detail:", result.errorMessage);
+            return res.status(500).json({
                 isError: true,
                 data: "",
                 errorMessage: result.errorMessage
-            };
-        } else {
-            response = {
-                isError: false,
-                data: "บันทึกราคารับซื้อสำเร็จ",
-                errorMessage: ""
-            };
+            });
         }
-    }
 
-    res.send(JSON.stringify(response));
+        return res.status(200).json({
+            isError: false,
+            data: "บันทึกราคารับซื้อสำเร็จ",
+            errorMessage: ""
+        });
+
+    } catch (err) {
+        console.error("Error in /api/price/save_price route:", err);
+        return res.status(500).json({
+            isError: true,
+            data: "",
+            errorMessage: err.message
+        });
+    }
 });
 
 app.get("/api/price/get_today_price", async (req, res) => {
@@ -329,6 +340,157 @@ app.get("/api/car/get_all_cars", async (req, res) => {
         response = { isError: true, data: [], errorMessage: err.message };
     }
     res.send(JSON.stringify(response));
+});
+
+app.get("/api/test/pending_list", async (req, res) => {
+    try {
+        const result = await testModel.getPendingPurchases();
+        if (result.isError) {
+            return res.status(500).json({ isError: true, data: [], errorMessage: result.errorMessage });
+        }
+        return res.status(200).json({ isError: false, data: result.data, errorMessage: "" });
+    } catch (err) {
+        return res.status(500).json({ isError: true, data: [], errorMessage: err.message });
+    }
+});
+
+// 📌 API บันทึกผลการตรวจคุณภาพน้ำยาง
+app.post("/api/test/save_test", async (req, res) => {
+    try {
+        const { purchase_id } = req.body;
+
+        if (!purchase_id) {
+            return res.status(400).json({
+                isError: true,
+                errorMessage: "กรุณาระบุรหัสการรับซื้อ (purchase_id)"
+            });
+        }
+
+        const result = await testModel.createTest(req.body);
+
+        if (result.isError) {
+            return res.status(500).json({ isError: true, errorMessage: result.errorMessage });
+        }
+
+        return res.status(200).json({
+            isError: false,
+            data: "บันทึกผลการตรวจคุณภาพเรียบร้อยแล้ว",
+            testId: result.generatedId
+        });
+
+    } catch (err) {
+        return res.status(500).json({ isError: true, errorMessage: err.message });
+    }
+});
+
+app.get('/api/test/pending-purchases', async (req, res) => {
+  const result = await TestModel.getPendingPurchases();
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, data: result.data });
+});
+
+// 📌 1. [Scope 1: Read] แสดงข้อมูล Test ทั้งหมด
+app.get('/api/test', async (req, res) => {
+  const result = await TestModel.getAllTests();
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, data: result.data });
+});
+
+// 📌 2. [Scope 2: Create] เพิ่มข้อมูล Test (บันทึกผลการตรวจคุณภาพน้ำยาง)
+app.post('/api/test', async (req, res) => {
+  const result = await TestModel.createTest(req.body);
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.status(201).json({ 
+    success: true, 
+    message: 'บันทึกผลการตรวจคุณภาพเรียบร้อยแล้ว', 
+    generatedId: result.generatedId 
+  });
+});
+
+// 📌 3. [Scope 3: Update] แก้ไขข้อมูล Test
+app.put('/api/test/:id', async (req, res) => {
+  const testId = req.params.id;
+  const result = await TestModel.updateTest(testId, req.body);
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, message: result.message });
+});
+
+// 📌 4. [Scope 4: Delete] ลบข้อมูล Test
+app.delete('/api/test/:id', async (req, res) => {
+  const testId = req.params.id;
+  const result = await TestModel.deleteTest(testId);
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, message: result.message });
+});
+
+// 📌 5. [Scope 5: Analytics] แสดงจำนวน Test แยกตาม Farmer
+app.get('/api/test/count-by-farmer', async (req, res) => {
+  const result = await TestModel.getTestCountByFarmer();
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, data: result.data });
+});
+
+app.get('/api/test/by-farmer', async (req, res) => {
+  const { search } = req.query;
+  const result = await TestModel.getTestsByFarmer(search || '');
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, data: result.data });
+});
+
+// ดึงรายการรับซื้อทั้งหมด
+app.get('/api/purchase', async (req, res) => {
+  const result = await PurchaseModel.getAllPurchases();
+  if (result.isError) return res.status(500).json({ success: false, message: result.errorMessage });
+  res.json({ success: true, data: result.data });
+});
+
+// บันทึกการรับซื้อ
+app.post('/api/purchase', async (req, res) => {
+  const result = await PurchaseModel.savePurchase(req.body);
+  if (result.isError) return res.status(500).json({ success: false, message: result.errorMessage });
+  res.json({ success: true, generatedId: result.generatedId });
+});
+
+// แก้ไขการรับซื้อ
+app.put('/api/purchase/:id', async (req, res) => {
+  const result = await PurchaseModel.updatePurchase(req.params.id, req.body);
+  if (result.isError) return res.status(500).json({ success: false, message: result.errorMessage });
+  res.json({ success: true, message: result.message });
+});
+
+// ลบการรับซื้อ
+app.delete('/api/purchase/:id', async (req, res) => {
+  const result = await PurchaseModel.deletePurchase(req.params.id);
+  if (result.isError) return res.status(500).json({ success: false, message: result.errorMessage });
+  res.json({ success: true, message: result.message });
+});
+
+// จำนวน purchase แยกตาม price
+app.get('/api/purchase/count-by-price', async (req, res) => {
+  try {
+    const result = await PurchaseModel.getPurchaseCountByPrice();
+    if (result.isError) {
+      return res.status(500).json({ success: false, message: result.errorMessage });
+    }
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    console.error('API Error /count-by-price:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 app.listen(port, () => {

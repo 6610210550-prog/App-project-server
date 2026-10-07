@@ -76,6 +76,83 @@ class FarmerModel {
             return { isError: true, errorMessage: error.message };
         }
     }
+
+    static async deleteFarmer(farmerId) {
+    try {
+      const sql = `DELETE FROM farmer WHERE farmer_id = ?`;
+      const result = await pool.query(sql, [farmerId]);
+
+      return { success: true, isError: false };
+    } catch (error) {
+      console.error('Error in FarmerModel.deleteFarmer:', error);
+      return { success: false, isError: true, errorMessage: error.message };
+    }
+  }
+
+  //  แก้ไขข้อมูลเกษตรกร
+  static async updateFarmer(farmerId, updateData) {
+    try {
+      const {
+        farmer_name,
+        address,
+        phone,
+        bank_number,
+        bank_type
+      } = updateData;
+
+      const sql = `
+        UPDATE farmer 
+        SET farmer_name = ?, 
+            address = ?, 
+            phone = ?, 
+            bank_number = ?, 
+            bank_type = ?
+        WHERE farmer_id = ?
+      `;
+
+      const params = [
+        farmer_name,
+        address,
+        phone,
+        bank_number,
+        bank_type,
+        farmerId
+      ];
+
+      const result = await pool.query(sql, params);
+
+      return { success: true, isError: false };
+    } catch (error) {
+      console.error('Error in FarmerModel.updateFarmer:', error);
+      return { success: false, isError: true, errorMessage: error.message };
+    }
+  }
+
+  static async getFarmerTestSummary() {
+    let conn;
+    let result;
+    try {
+      conn = await pool.getConnection();
+      const sql = `
+        SELECT 
+          f.farmer_id,
+          f.farmer_name,
+          COUNT(t.test_id) AS total_tests,
+          AVG(t.drc) AS avg_drc
+        FROM test t
+        JOIN purchase p ON t.purchase_id = p.purchase_id
+        JOIN farmer f ON p.farmer_id = f.farmer_id
+        GROUP BY f.farmer_id, f.farmer_name
+      `;
+      const [rows] = await conn.query(sql);
+      result = { isError: false, data: rows, errorMessage: "" };
+    } catch (error) {
+      result = { isError: true, data: [], errorMessage: error.message };
+    } finally {
+      if (conn) conn.release();
+      return result;
+    }
+  }
 }
 
 module.exports = FarmerModel;

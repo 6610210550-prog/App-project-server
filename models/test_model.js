@@ -208,6 +208,37 @@ static async getTestsByFarmer(searchQuery = '') {
     return { isError: true, errorMessage: error.message };
   }
 }
+
+static async getFarmerTestSummary() {
+    try {
+      const sql = `
+        SELECT 
+          f.farmer_id,
+          f.farmer_name,
+          ROUND(AVG(t.drc), 2) AS avg_drc,
+          CAST(COUNT(t.test_id) AS UNSIGNED) AS total_tests
+        FROM test t
+        JOIN purchase p ON t.purchase_id = p.purchase_id
+        JOIN farmer f ON p.farmer_id = f.farmer_id
+        GROUP BY f.farmer_id, f.farmer_name
+        ORDER BY avg_drc DESC
+      `;
+      const result = await pool.query(sql);
+      let rows = Array.isArray(result[0]) ? result[0] : result;
+
+      rows = rows.map(row => ({
+        farmer_id: row.farmer_id,
+        farmer_name: row.farmer_name,
+        avg_drc: Number(row.avg_drc) || 0,
+        total_tests: Number(row.total_tests) || 0
+      }));
+
+      return { isError: false, data: rows };
+    } catch (error) {
+      console.error('Error in TestModel.getFarmerTestSummary:', error);
+      return { isError: true, errorMessage: error.message };
+    }
+  }
 }
 
 module.exports = TestModel;

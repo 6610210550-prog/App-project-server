@@ -492,6 +492,43 @@ app.get('/api/purchase/count-by-price', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+app.get('/api/test/summary-by-farmer', async (req, res) => {
+  const result = await TestModel.getFarmerTestSummary();
+  if (result.isError) {
+    return res.status(500).json({ success: false, message: result.errorMessage });
+  }
+  res.json({ success: true, data: result.data });
+});
+
+app.get("/api/farmers/test_summary", async (req, res) => {
+  const response = await farmerModel.getFarmerTestSummary();
+  res.json(response);
+});
+
+app.delete('/api/farmers/:farmerId', async (req, res) => {
+  const { farmerId } = req.params;
+  const result = await farmerModel.deleteFarmer(farmerId);
+
+  if (result.isError) {
+    return res.status(500).json({ success: false, isError: true, message: result.errorMessage });
+  }
+
+  return res.status(200).json({ success: true, isError: false, message: 'ลบข้อมูลเกษตรกรสำเร็จ' });
+});
+
+// 📌 Route สำหรับแก้ไขเกษตรกร (PUT /api/farmers/:farmerId)
+app.put('/api/farmers/:farmerId', async (req, res) => {
+  const { farmerId } = req.params;
+  const updateData = req.body;
+
+  const result = await farmerModel.updateFarmer(farmerId, updateData);
+
+  if (result.isError) {
+    return res.status(500).json({ success: false, isError: true, message: result.errorMessage });
+  }
+
+  return res.status(200).json({ success: true, isError: false, message: 'แก้ไขข้อมูลเกษตรกรสำเร็จ' });
+});
 
 app.listen(port, () => {
     console.log(`Server running at http://${hostname}:${port}/`);

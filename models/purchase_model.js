@@ -207,6 +207,38 @@ class PurchaseModel {
     return { isError: true, errorMessage: error.message };
   }
 }
+static async getPurchaseCountByPrice() {
+    try {
+      const sql = `
+        SELECT 
+          pr.price_id,
+          p.buy_price AS price_value,
+          CAST(COUNT(pr.purchase_id) AS UNSIGNED) AS total_count,
+          SUM(pr.rubber_weight) AS total_weight,
+          SUM(pr.total_price) AS sum_amount
+        FROM purchase pr
+        JOIN price p ON pr.price_id = p.price_id
+        GROUP BY pr.price_id, p.buy_price
+        ORDER BY p.buy_price DESC
+      `;
+      const result = await pool.query(sql);
+      let rows = Array.isArray(result[0]) ? result[0] : result;
+
+      rows = rows.map(row => ({
+        price_id: row.price_id,
+        price_value: Number(row.price_value) || 0,
+        total_count: Number(row.total_count) || 0,
+        total_weight: Number(row.total_weight) || 0,
+        sum_amount: Number(row.sum_amount) || 0
+      }));
+
+      return { isError: false, data: rows };
+    } catch (error) {
+      console.error('Error in PurchaseModel.getPurchaseCountByPrice:', error);
+      return { isError: true, errorMessage: error.message };
+    }
+  }
 }
+
 
 module.exports = PurchaseModel; 
